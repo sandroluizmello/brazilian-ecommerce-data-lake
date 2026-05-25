@@ -1,0 +1,30 @@
+# Ambiente virtual
+.venv/
+
+# Python
+__pycache__/
+*.pyc
+
+# Logs
+logs/
+*.log
+
+# Airflow
+airflow.db
+
+# Data Lake (dados não versionados)
+datalake/
+
+# Dados brutos
+data/
+
+# Arquivos sensíveis
+.env
+.kaggle/
+
+# VS Code
+.vscode/
+
+# Sistema
+.DS_Store
+Thumbs.db
