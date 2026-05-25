@@ -6,7 +6,7 @@ Projeto de Engenharia de Dados com foco na construção de um pipeline moderno u
 
 ## 🎯 Objetivo
 
-Desenvolver um pipeline completo de dados, desde a ingestão até a disponibilização para análise, utilizando ferramentas amplamente adotadas no mercado.
+Desenvolver um pipeline completo de dados, desde a ingestão até a disponibilização para análise, utilizando ferramentas amplamente adotadas no mercado e boas práticas de engenharia de dados.
 
 ---
 
@@ -24,6 +24,7 @@ Kaggle → Data Lake (MinIO) → PySpark → Bronze → Silver → Gold → Airf
 * Docker
 * MinIO (simulação de S3)
 * Kaggle API
+* Git / GitHub
 
 ---
 
@@ -34,7 +35,7 @@ O ambiente foi provisionado utilizando Docker, contendo:
 * **Airflow** → Orquestração de pipelines
 * **MinIO** → Data Lake (simulando S3)
 
-### Acessos:
+### 🔗 Acessos
 
 * Airflow: http://localhost:8080
 
@@ -55,20 +56,21 @@ data-engineering-pipeline-olist/
 │
 ├── dags/                  # DAGs do Airflow
 ├── src/                   # Código do pipeline
-│   ├── ingestion/
-│   ├── processing/
-│   └── utils/
+│   ├── ingestion/         # Ingestão de dados
+│   ├── processing/        # Transformações (Silver/Gold)
+│   └── utils/             # Funções auxiliares
 │
 ├── datalake/              # Data Lake local (MinIO)
 │   ├── bronze/
 │   ├── silver/
 │   └── gold/
 │
+├── data/                  # Dados brutos (Kaggle - não versionado)
 ├── docker/                # Configuração Docker (Airflow + MinIO)
-├── notebooks/             # Exploração de dados (opcional)
-├── tests/                 # Testes (opcional)
+├── logs/                  # Logs do Airflow (ignorado no Git)
 │
 ├── requirements.txt
+├── .gitignore
 └── README.md
 ```
 
@@ -95,33 +97,52 @@ data-engineering-pipeline-olist/
 
 ---
 
-## ✅ Etapas já implementadas
+## ✅ Status Atual do Projeto
+
+Até o momento, já foi implementado:
 
 * [x] Criação do ambiente virtual (.venv)
 * [x] Configuração do projeto no GitHub
+* [x] Criação da estrutura do projeto
 * [x] Setup do Docker
 * [x] Subida do Airflow
 * [x] Subida do MinIO (Data Lake)
-* [x] Estrutura inicial do projeto
+* [x] Configuração de volumes (dags, logs, plugins)
+* [x] Configuração do `.gitignore`
 
 ---
 
 ## 🔄 Próximas etapas
 
+### 🔹 Fase 1 — Ingestão (Bronze)
+
 * [ ] Download dos dados do Kaggle
-* [ ] Ingestão para camada Bronze
-* [ ] Processamento com PySpark
-* [ ] Criação das camadas Silver e Gold
-* [ ] Orquestração com Airflow
+* [ ] Ingestão para camada Bronze com PySpark
+* [ ] Armazenamento em formato otimizado (Parquet)
+
+### 🔹 Fase 2 — Processamento (Silver)
+
+* [ ] Limpeza de dados
+* [ ] Padronização de schemas
+* [ ] Tratamento de nulos e inconsistências
+
+### 🔹 Fase 3 — Camada Analítica (Gold)
+
 * [ ] Criação de métricas de negócio
+* [ ] Agregações (faturamento, pedidos, clientes, etc.)
+
+### 🔹 Fase 4 — Orquestração
+
+* [ ] Criação de DAGs no Airflow
+* [ ] Automatização do pipeline completo
 
 ---
 
 ## 📊 Dataset
 
-Será utilizado o dataset público de e-commerce brasileiro (Olist):
+Dataset público utilizado:
 
-https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce
+👉 https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce
 
 ---
 
@@ -153,6 +174,16 @@ pip install -r requirements.txt
 
 ---
 
+## 📍 Ponto Atual do Projeto (Importante)
+
+O ambiente já está completamente configurado e funcional (Airflow + MinIO).
+
+👉 Próximo passo ao continuar o desenvolvimento:
+
+**Implementar ingestão de dados com PySpark na camada Bronze**
+
+---
+
 ## 👤 Autor
 
 **Sandro Luiz**
@@ -161,4 +192,4 @@ pip install -r requirements.txt
 
 ## 📌 Observação
 
-Este projeto tem como objetivo aprendizado prático e simulação de cenários reais de engenharia de dados, utilizando boas práticas de mercado.
+Este projeto tem como objetivo aprendizado prático e simulação de cenários reais de engenharia de dados, seguindo boas práticas utilizadas no mercado.
