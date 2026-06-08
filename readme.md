@@ -136,11 +136,34 @@ Centralização e automação da higienização de **8 tabelas do ecossistema**,
 * **Agregação por coordenadas médias (`avg`) por prefixo de CEP**: reduz o volume massivo de redundâncias transacionais para uma tabela dimensão de alta performance
 * Resultado: tabela compactada em Parquet com redução significativa de volume
 
-### 🟡 Gold
+### 🟡 Gold (`gold_processing.py`)
 
-* Dados agregados
-* Métricas de negócio
-* Pronto para análise
+Camada analítica dimensional pronta para consumo em ferramentas de BI.
+
+#### 🏛️ Modelo Dimensional Consolidado
+
+**Fato Central:**
+* `fato_vendas`: Tabela de fatos contendo todas as transações de venda com métricas quantitativas
+
+**Dimensões Diretas:**
+* `dim_produtos`: Atributos dos produtos (categoria, dimensões físicas, peso)
+* `dim_clientes`: Perfil de clientes (localização, CEP)
+* `dim_vendedores`: Informações dos vendedores (localização, CEP)
+* `dim_pagamentos`: Métodos e valores de pagamento por pedido
+* `dim_avaliacoes`: Reviews e feedbacks de clientes
+
+**Dimensões com Extensão Geográfica (Role-Playing):**
+* `dim_geolocalizacao_clientes`: Coordenadas e localização por CEP de clientes
+* `dim_geolocalizacao_vendedores`: Coordenadas e localização por CEP de vendedores
+
+#### 📊 Métricas na Fato Vendas
+
+* `sk_pedido`: Chave da transação
+* `nk_cliente`, `nk_produto`, `nk_vendedor`: Chaves das dimensões
+* `quantidade_itens`: Unidades vendidas
+* `valor_produto`, `valor_frete`, `valor_total_item`: Métricas monetárias
+* `data_compra`, `data_aprovacao`, `data_postagem`, `data_entrega`: Dimensão temporal
+* `status_pedido`: Contexto transacional
 
 ---
 
@@ -273,6 +296,22 @@ Todos os dados processados são salvos no bucket `silver/` do MinIO em formato P
 
 ---
 
+### 7. Processar e agregar dados na camada Gold
+
+```bash
+python src/processing/gold_processing.py
+```
+
+O script constrói o modelo dimensional com **1 tabela de fatos e 7 dimensões**:
+- Fato central de vendas com métricas quantitativas
+- Dimensões descritivas de produtos, clientes, vendedores
+- Extensões geográficas com role-playing para análises espaciais
+- Validação de integridade referencial
+
+Todos os dados agregados são salvos no bucket `gold/` do MinIO em formato Parquet.
+
+---
+
 ## ✅ Status Atual do Projeto
 
 * [x] Criação do ambiente virtual (.venv)
@@ -289,22 +328,126 @@ Todos os dados processados são salvos no bucket `silver/` do MinIO em formato P
 * [x] Armazenamento em formato otimizado (Parquet)
 * [x] Limpeza e padronização da camada Silver (`silver_processing.py`)
 * [x] Processamento de 8 tabelas com validações de Data Quality
+* [x] Modelo dimensional na camada Gold (`gold_processing.py`)
+* [x] Construção de 1 tabela de fatos + 7 dimensões
+
+---
+
+## 🏛️ Arquitetura de Dados
+
+O projeto segue a abordagem de construção incremental de um Data Lake moderno, validando cada camada individualmente antes da automatização completa do fluxo:
+
+```
+Kaggle
+   ↓
+Landing Zone (MinIO)
+   ↓
+Bronze (Ingestão)
+   ↓
+Silver (Qualidade)
+   ↓
+Gold (Dimensional)
+```
+
+### Camadas
+
+#### Landing Zone
+Área de recebimento dos dados brutos provenientes do Kaggle.
+
+#### 🟤 Bronze
+Camada responsável pela ingestão e persistência dos dados em formato Parquet, preservando ao máximo as informações originais e aplicando tratamentos estruturais necessários para garantir a integridade dos dados.
+
+#### ⚪ Silver
+Camada de qualidade de dados, responsável por padronizações, validações, remoção de duplicidades, tratamento de nulos, correções de schema e preparação para consumo analítico.
+
+#### 🟡 Gold
+Camada analítica dimensional destinada à criação de indicadores, métricas de negócio e tabelas agregadas para consumo por ferramentas de BI e Analytics.
+
+---
+
+## 🔄 Estratégia de Desenvolvimento
+
+A construção do projeto está sendo realizada de forma **incremental**, seguindo boas práticas de Engenharia de Dados.
+
+Antes da implementação da orquestração, cada camada é validada individualmente para garantir:
+
+* ✅ Confiabilidade das extrações
+* ✅ Integridade dos dados
+* ✅ Qualidade das transformações
+* ✅ Facilidade de troubleshooting
+* ✅ Reprodutibilidade dos processos
+
+**Somente após a validação completa das camadas Bronze, Silver e Gold** será realizada a automatização do fluxo utilizando Apache Airflow.
+
+---
+
+## ⚙️ Arquitetura de Orquestração (Próxima Fase - Fase 4)
+
+Após a conclusão e validação das transformações analíticas, o pipeline será automatizado utilizando **Apache Airflow**:
+
+```
+Airflow
+   ↓
+Download Kaggle
+   ↓
+Landing Zone (MinIO)
+   ↓
+Bronze Ingestion (PySpark)
+   ↓
+Silver Processing (Data Quality - 8 tabelas)
+   ↓
+Gold Modeling (Dimensional - 1 Fato + 7 Dimensões)
+```
+
+### Responsabilidades do Airflow
+
+* 📅 **Agendamento**: Execuções automáticas (ex: diárias/semanais)
+* 🔍 **Monitoramento**: Acompanhamento em tempo real das tarefas
+* 🔗 **Dependências**: Controle de fluxo entre Bronze → Silver → Gold
+* ⚠️ **Tratamento de Falhas**: Retry automático e alertas
+* 📊 **Observabilidade**: Logs centralizados e métricas de performance
+
+---
+
+## 📊 Consumo Analítico (Próxima Fase - Post Airflow)
+
+Os dados da camada Gold serão disponibilizados para consumo analítico através de **Power BI** e relatórios executivos:
+
+```
+Gold (MinIO/Parquet)
+   ↓
+Power BI / Ferramentas de BI
+   ↓
+Dashboards Executivos
+```
+
+### Primeiros Indicadores Previstos
+
+* 💰 **Faturamento por Estado**: Análise geográfica de receita
+* 📈 **Evolução Mensal de Vendas**: Série temporal de volume
+* 🎯 **Ticket Médio**: Valor médio de transação
+* 🛍️ **Categorias Mais Vendidas**: Top products/categories
+* ⏱️ **Tempo Médio de Entrega**: KPI logístico
+* ⭐ **Performance de Vendedores**: Ranking e análise de sellers
+* 👤 **Segmentação de Clientes**: Clusters e comportamentos
 
 ---
 
 ## 🔄 Próximas etapas
 
-### 🔹 Fase 3 — Camada Analítica (Gold)
+### 🔹 Fase 4 — Orquestração com Airflow
 
-* [ ] Criação de métricas de negócio
-* [ ] Agregações (faturamento, pedidos, clientes, etc.)
+* [ ] Criação de DAGs para automatização completa
+* [ ] Agendamento de execuções
+* [ ] Configuração de alertas e monitoramento
+* [ ] Tratamento de falhas e retry policies
 
-### 🔹 Fase 4 — Orquestração
+### 🔹 Fase 5 — Modelagem Analítica e BI
 
-* [ ] Criação de DAGs no Airflow
-* [ ] Automatização do pipeline completo
-
----
+* [ ] Integração com Power BI
+* [ ] Construção de dashboards executivos
+* [ ] Definição de KPIs de negócio
+* [ ] Documentação de métricas e dimensões
 
 ## 📊 Dataset
 
