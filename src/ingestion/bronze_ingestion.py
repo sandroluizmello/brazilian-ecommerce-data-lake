@@ -64,7 +64,10 @@ def create_spark():
         .getOrCreate()
 
 def ingest_csv_to_parquet(spark, file_name):
-    """Lê o CSV do bucket landing-zone e salva em Parquet no bucket bronze."""
+    """Lê o CSV do bucket landing-zone e salva em Parquet no bucket bronze
+
+    tratando quebras de linha dentro dos campos de texto (ex: reviews).
+    """
     input_path = f"s3a://landing-zone/olist/{file_name}"
     folder_name = file_name.replace(".csv", "")
     output_path = f"s3a://bronze/{folder_name}"
@@ -72,7 +75,14 @@ def ingest_csv_to_parquet(spark, file_name):
     print(f"⏳ Ingerindo {file_name}...")
 
     try:
-        df = spark.read.csv(input_path, header=True, inferSchema=True)
+        # Adicionadas as opções multiline e escape para blindar a leitura de comentários
+        df = spark.read \
+            .option("header", "true") \
+            .option("inferSchema", "true") \
+            .option("multiLine", "true") \
+            .option("escape", '"') \
+            .csv(input_path)
+            
         df.write.mode("overwrite").parquet(output_path)
         print(f"✅ Salvo com sucesso em: {output_path}")
     except Exception as e:

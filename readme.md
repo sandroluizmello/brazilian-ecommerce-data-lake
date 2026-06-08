@@ -78,16 +78,63 @@ data-engineering-pipeline-olist/
 
 ## 🧱 Camadas do Data Lake
 
-### 🟤 Bronze
+### 🟤 Bronze (`bronze_ingestion.py`)
 
-* Dados brutos ingeridos do Kaggle via PySpark
-* Formato Parquet (otimizado para leitura)
+* Leitura dinâmica de todos os CSVs da Landing Zone via PySpark
+* Persistência no bucket `bronze/` em formato **Parquet** (otimizado para leitura columnar)
+* **Tratamento de Integridade** ⚠️: Implementação de suporte a múltiplas linhas (`multiLine=True`) e caracteres de escape (`escape='"'`) para blindar a ingestão contra comentários de clientes que possuem quebras de linha (`\n`) no texto original, evitando a corrupção estrutural do schema
+  * 🔗 **Impacto no Silver**: Esse tratamento preventivo na Bronze elimina inconsistências que causariam falhas durante a validação e remoção de nulos no Silver
 * Origem: landing-zone/olist/ → bronze/
 
-### ⚪ Silver
+### ⚪ Silver (`silver_processing.py`)
 
-* Dados limpos e padronizados
-* Tratamento de tipos, nulos e inconsistências
+Centralização e automação da higienização de **8 tabelas do ecossistema**, aplicando transformações de qualidade de dados (*Data Quality*):
+
+#### `olist_orders_dataset`
+* Padronização de strings (trim, lower)
+* Remoção de nulos na chave primária (`order_id`, `customer_id`)
+* Cast rigoroso de campos de data/timestamp
+* Remoção de duplicados
+
+#### `olist_order_items_dataset`
+* Ajuste dos tipos de dados para métricas financeiras (`DoubleType`)
+* Padronização de contagem de itens (`IntegerType`)
+* Validação de chaves primárias e estrangeiras
+* Remoção de duplicados por ordem e item
+
+#### `olist_order_payments_dataset`
+* Padronização dos métodos de pagamento (caixa baixa)
+* Validação de valores monetários (`DoubleType`)
+* Cast de quantidade de parcelas (`IntegerType`)
+* Remoção de duplicados por sequência de pagamento
+
+#### `olist_products_dataset`
+* Correção de nomenclatura de colunas (ex: `lenght` → `length`)
+* Cast de dimensões físicas e peso para `DoubleType`
+* Categorias padronizadas em caixa baixa (`lower`)
+* Validação de chave primária (`product_id`)
+
+#### `olist_customers_dataset`
+* Correção de mapeamento geográfico (cidades e estados em caixa baixa)
+* Preservação do tipo texto nos prefixos de CEP (evita perda de dígitos iniciais zero)
+* Validação de chaves primárias (`customer_id`, `customer_unique_id`)
+* Remoção de duplicados
+
+#### `olist_sellers_dataset`
+* Limpeza geográfica e padronização textual de estados e municípios
+* Validação de chave primária (`seller_id`)
+* Caixa baixa em localidades
+
+#### `olist_order_reviews_dataset`
+* Tratamento contra ruídos residuais
+* Validação do score de satisfação (1 a 5)
+* Tolerância a campos de texto nulos legítimos
+* Remoção de duplicados por review
+
+#### `olist_geolocation_dataset` ⭐ *Otimização Premium*
+* Remoção de acentuação textual (`translate`) para agrupar chaves idênticas (ex: *são paulo* e *sao paulo*)
+* **Agregação por coordenadas médias (`avg`) por prefixo de CEP**: reduz o volume massivo de redundâncias transacionais para uma tabela dimensão de alta performance
+* Resultado: tabela compactada em Parquet com redução significativa de volume
 
 ### 🟡 Gold
 
@@ -97,7 +144,21 @@ data-engineering-pipeline-olist/
 
 ---
 
-## 🔐 Integração com a API do Kaggle
+## 🔗 Dependências Entre Camadas
+
+### Bronze → Silver
+
+O tratamento de integridade implementado na **camada Bronze** é fundamental para o sucesso do processamento na **camada Silver**:
+
+| Problema no Kaggle | Solução na Bronze | Benefício no Silver |
+|---|---|---|
+| Comentários de clientes com quebras de linha (`\n`) | `multiLine=True` e `escape='"'` | Schema consistente, validações de nulos funcionam corretamente |
+| CSVs malformados por caracteres especiais | Parsing robusto com escape | Remoção de duplicados sem erros estruturais |
+| Dados corrompidos durante leitura | Parquet com schema inferido corretamente | Cast de tipos e transformações precisas |
+
+**Sem o tratamento preventivo na Bronze**, a camada Silver teria falhado ao tentar aplicar validações de chaves primárias e transformações de tipos.
+
+---
 
 Para permitir o download automatizado dos dados, foi realizada a integração com a API do Kaggle utilizando o novo modelo de autenticação via **API Token**.
 
@@ -194,6 +255,24 @@ O script descobre automaticamente todos os CSVs disponíveis na landing zone, co
 
 ---
 
+### 6. Processar e limpar dados na camada Silver
+
+```bash
+python src/processing/silver_processing.py
+```
+
+O script realiza limpeza e padronização de **8 tabelas** do ecossistema Olist:
+- Validação de tipos de dados
+- Remoção de nulos em chaves primárias
+- Padronização de strings (trim, lower)
+- Correção de nomenclatura de colunas
+- Agregações inteligentes (ex: geolocalização por CEP)
+- Remoção de duplicados
+
+Todos os dados processados são salvos no bucket `silver/` do MinIO em formato Parquet otimizado.
+
+---
+
 ## ✅ Status Atual do Projeto
 
 * [x] Criação do ambiente virtual (.venv)
@@ -208,16 +287,12 @@ O script descobre automaticamente todos os CSVs disponíveis na landing zone, co
 * [x] Script de download automático dos dados (`download_kaggle.py`)
 * [x] Ingestão para camada Bronze com PySpark (`bronze_ingestion.py`)
 * [x] Armazenamento em formato otimizado (Parquet)
+* [x] Limpeza e padronização da camada Silver (`silver_processing.py`)
+* [x] Processamento de 8 tabelas com validações de Data Quality
 
 ---
 
 ## 🔄 Próximas etapas
-
-### 🔹 Fase 2 — Processamento (Silver)
-
-* [ ] Limpeza de dados
-* [ ] Padronização de schemas
-* [ ] Tratamento de nulos e inconsistências
 
 ### 🔹 Fase 3 — Camada Analítica (Gold)
 
