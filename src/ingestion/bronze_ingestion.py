@@ -1,4 +1,5 @@
 import os
+import platform
 from pathlib import Path
 from dotenv import load_dotenv
 from pyspark.sql import SparkSession
@@ -9,11 +10,27 @@ def carregar_configuracoes():
     env_path = Path(__file__).resolve().parents[2] / ".env"
     load_dotenv(dotenv_path=env_path)
 
+def obter_minio_endpoint():
+    """Retorna o endpoint do MinIO, ajustando automaticamente para execução local vs. container.
+
+    Se MINIO_ENDPOINT estiver definido no .env e estivermos dentro de um container
+    (detectado via /.dockerenv), usa o valor do .env (ex: http://minio:9000).
+    Caso contrário (execução local), usa http://localhost:9000, a menos que
+    MINIO_ENDPOINT_LOCAL seja definido explicitamente no .env.
+    """
+    rodando_em_container = os.path.exists("/.dockerenv")
+
+    if rodando_em_container:
+        return os.getenv("MINIO_ENDPOINT", "http://minio:9000")
+
+    return os.getenv("MINIO_ENDPOINT_LOCAL", "http://localhost:9000")
+
+
 def obter_arquivos_da_landing():
     """Conecta ao MinIO via boto3 e lista dinamicamente todos os CSVs na pasta olist/."""
     s3_client = boto3.client(
         "s3",
-        endpoint_url=os.getenv("MINIO_ENDPOINT", "http://localhost:9000"),
+        endpoint_url=obter_minio_endpoint(),
         aws_access_key_id=os.getenv("MINIO_ACCESS_KEY", "admin"),
         aws_secret_access_key=os.getenv("MINIO_SECRET_KEY", "password"),
     )
@@ -47,20 +64,29 @@ def obter_arquivos_da_landing():
 
 def create_spark():
     """Inicializa a SparkSession configurada para se conectar ao MinIO de forma estável."""
+    # Versão compatível com a maioria das instalações estáveis do Spark 3.5.x locais
     hadoop_aws_package = "org.apache.hadoop:hadoop-aws:3.4.2"
+
+    default_buffer_dir = "C:/tmp/spark-s3a-buffer" if platform.system() == "Windows" else "/tmp/spark-s3a-buffer"
+    buffer_dir = os.getenv("SPARK_BUFFER_DIR", default_buffer_dir)
+    os.makedirs(buffer_dir, exist_ok=True)
 
     return SparkSession.builder \
         .appName("Bronze Ingestion - Dynamic MinIO") \
         .config("spark.jars.packages", hadoop_aws_package) \
-        .config("spark.hadoop.fs.s3a.endpoint", os.getenv("MINIO_ENDPOINT", "http://localhost:9000")) \
+        .config("spark.hadoop.fs.s3a.endpoint", obter_minio_endpoint()) \
         .config("spark.hadoop.fs.s3a.access.key", os.getenv("MINIO_ACCESS_KEY", "admin")) \
         .config("spark.hadoop.fs.s3a.secret.key", os.getenv("MINIO_SECRET_KEY", "password")) \
         .config("spark.hadoop.fs.s3a.path.style.access", "true") \
         .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem") \
         .config("spark.hadoop.fs.s3a.connection.ssl.enabled", "false") \
-        .config("spark.hadoop.fs.s3a.buffer.dir", "C:/hadoop/temp") \
+        .config("spark.hadoop.fs.s3a.buffer.dir", buffer_dir) \
         .config("spark.hadoop.fs.s3a.aws.credentials.provider", "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider") \
         .config("spark.hadoop.mapreduce.fileoutputcommitter.marksuccessfuljobs", "false") \
+        .config("spark.hadoop.mapreduce.outputcommitter.factory.scheme.s3a", "org.apache.hadoop.fs.s3a.commit.S3ACommitterFactory") \
+        .config("spark.hadoop.fs.s3a.committer.name", "directory") \
+        .config("spark.hadoop.fs.s3a.committer.staging.conflict-mode", "replace") \
+        .config("spark.hadoop.mapreduce.fileoutputcommitter.algorithm.version", "2") \
         .getOrCreate()
 
 def ingest_csv_to_parquet(spark, file_name):

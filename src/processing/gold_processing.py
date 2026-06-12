@@ -10,25 +10,37 @@ def carregar_configuracoes():
     load_dotenv(dotenv_path=env_path)
 
 def create_spark():
-    """Inicializa a SparkSession configurada para o MinIO com correção de buffer local."""
+    """Inicializa a SparkSession configurada para o MinIO detectando o ambiente."""
+    print("🚀 Inicializando a sessão do PySpark para a camada Gold...")
+    
+    # Detecção dinâmica se está rodando dentro do Docker ou local no Windows
+    rodando_em_container = os.path.exists("/.dockerenv")
+    if rodando_em_container:
+        minio_endpoint = os.getenv("MINIO_ENDPOINT", "http://minio:9000")
+    else:
+        minio_endpoint = os.getenv("MINIO_ENDPOINT_LOCAL", "http://localhost:9000")
+
     hadoop_aws_package = "org.apache.hadoop:hadoop-aws:3.4.2"
     
-    # Criando explicitamente um diretório temporário local seguro e sem espaços
-    # Se estiver no Windows, criará algo como C:\tmp\spark-s3a-buffer
-    buffer_dir = os.path.join(os.environ.get("SystemDrive", "C:"), os.sep, "tmp", "spark-s3a-buffer")
-    os.makedirs(buffer_dir, exist_ok=True)
+    import platform
+    default_buffer_dir = "C:/tmp/spark-s3a-buffer" if platform.system() == "Windows" else "/tmp/spark-s3a-buffer"
+    os.makedirs(default_buffer_dir, exist_ok=True)
     
     return SparkSession.builder \
         .appName("Gold Processing - Star Schema") \
         .config("spark.jars.packages", hadoop_aws_package) \
-        .config("spark.hadoop.fs.s3a.endpoint", os.getenv("MINIO_ENDPOINT", "http://localhost:9000")) \
+        .config("spark.hadoop.fs.s3a.endpoint", minio_endpoint) \
         .config("spark.hadoop.fs.s3a.access.key", os.getenv("MINIO_ACCESS_KEY", "admin")) \
         .config("spark.hadoop.fs.s3a.secret.key", os.getenv("MINIO_SECRET_KEY", "password")) \
         .config("spark.hadoop.fs.s3a.path.style.access", "true") \
         .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem") \
         .config("spark.hadoop.fs.s3a.connection.ssl.enabled", "false") \
+        .config("spark.hadoop.fs.s3a.buffer.dir", default_buffer_dir) \
         .config("spark.hadoop.fs.s3a.aws.credentials.provider", "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider") \
-        .config("spark.hadoop.fs.s3a.buffer.dir", buffer_dir) \
+        .config("spark.hadoop.mapreduce.fileoutputcommitter.marksuccessfuljobs", "false") \
+        .config("spark.hadoop.mapreduce.outputcommitter.factory.scheme.s3a", "org.apache.hadoop.fs.s3a.commit.S3ACommitterFactory") \
+        .config("spark.hadoop.fs.s3a.committer.name", "directory") \
+        .config("spark.hadoop.fs.s3a.committer.staging.conflict-mode", "replace") \
         .getOrCreate()
 
 def build_fato_vendas(spark):

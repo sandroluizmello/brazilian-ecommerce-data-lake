@@ -330,6 +330,9 @@ Todos os dados agregados são salvos no bucket `gold/` do MinIO em formato Parqu
 * [x] Processamento de 8 tabelas com validações de Data Quality
 * [x] Modelo dimensional na camada Gold (`gold_processing.py`)
 * [x] Construção de 1 tabela de fatos + 7 dimensões
+* [x] Orquestração com Apache Airflow (`pipeline_olist.py`)
+* [x] DAG completa: Download → Bronze → Silver → Gold
+* [x] Suporte para execução local e em containers (detecção automática)
 
 ---
 
@@ -381,31 +384,100 @@ Antes da implementação da orquestração, cada camada é validada individualme
 
 ---
 
-## ⚙️ Arquitetura de Orquestração (Próxima Fase - Fase 4)
+## ⚙️ Arquitetura de Orquestração (Fase 4 - CONCLUÍDA) ✅
 
-Após a conclusão e validação das transformações analíticas, o pipeline será automatizado utilizando **Apache Airflow**:
+O pipeline foi completamente automatizado utilizando **Apache Airflow**:
 
 ```
-Airflow
+Airflow DAG: pipeline_olist_data_lake
    ↓
-Download Kaggle
+Task 1: download_kaggle_to_landing
    ↓
-Landing Zone (MinIO)
+Task 2: bronze_ingestion
    ↓
-Bronze Ingestion (PySpark)
+Task 3: silver_processing
    ↓
-Silver Processing (Data Quality - 8 tabelas)
-   ↓
-Gold Modeling (Dimensional - 1 Fato + 7 Dimensões)
+Task 4: gold_processing
 ```
 
-### Responsabilidades do Airflow
+### 🔧 Configuração da DAG
 
-* 📅 **Agendamento**: Execuções automáticas (ex: diárias/semanais)
-* 🔍 **Monitoramento**: Acompanhamento em tempo real das tarefas
-* 🔗 **Dependências**: Controle de fluxo entre Bronze → Silver → Gold
-* ⚠️ **Tratamento de Falhas**: Retry automático e alertas
-* 📊 **Observabilidade**: Logs centralizados e métricas de performance
+**Arquivo**: `dags/pipeline_olist.py`
+
+- **DAG ID**: `pipeline_olist_data_lake`
+- **Schedule**: `@weekly` (executado toda segunda-feira)
+- **Executor**: CeleryExecutor com Redis
+- **Database**: PostgreSQL 16
+- **Retry Policy**: 1 tentativa + 5 minutos de espera
+- **Owner**: Sandro Luiz
+- **Tags**: olist, pyspark, minio
+
+### 🐳 Imagem Docker Customizada
+
+**Arquivo**: `docker/Dockerfile`
+
+Estende a imagem oficial do Airflow (`apache/airflow:3.2.1`) adicionando:
+- OpenJDK (necessário para PySpark rodar a JVM)
+- Exportação automática de `JAVA_HOME`
+- Suporte completo a execução de jobs PySpark
+
+### 🔄 Responsabilidades do Airflow
+
+* 📅 **Agendamento**: Execução automática semanal
+* 🔍 **Monitoramento**: Acompanhamento em tempo real via UI (localhost:8080)
+* 🔗 **Dependências**: Controle de fluxo sequencial (Bronze → Silver → Gold)
+* ⚠️ **Tratamento de Falhas**: Retry automático com delay de 5 minutos
+* 📊 **Observabilidade**: Logs centralizados por task
+* 🌐 **Compatibilidade**: Detecção automática de execução em container vs local
+
+### 🎯 Como Executar via Airflow
+
+1. **Subir os containers**:
+```bash
+cd docker
+docker compose build      # Builda a imagem com Java
+docker compose up airflow-init
+docker compose up -d
+```
+
+2. **Acessar a UI do Airflow**:
+   - URL: http://localhost:8080
+   - User: airflow
+   - Password: airflow
+
+3. **Ativar e disparar a DAG**:
+   - Localize `pipeline_olist_data_lake` na lista de DAGs
+   - Clique no botão ON/OFF para ativar
+   - Clique no botão ▶️ (Trigger) para executar manualmente
+   - Ou aguarde o agendamento semanal automático
+
+4. **Monitorar execução**:
+   - Clique na DAG para ver o gráfico de tasks
+   - Cada task mostra seu status (em execução, sucesso, falha)
+   - Clique na task para ver logs detalhados
+
+### 🔐 Variáveis de Ambiente Críticas
+
+O arquivo `.env` deve conter:
+```
+KAGGLE_API_TOKEN=seu_token_aqui
+MINIO_ENDPOINT=http://minio:9000           # Para execução no container
+MINIO_ENDPOINT_LOCAL=http://localhost:9000 # Para execução local no Windows
+MINIO_ACCESS_KEY=admin
+MINIO_SECRET_KEY=password
+```
+
+**Nota**: Os scripts detectam automaticamente se estão rodando em container ou localmente via verificação de `/.dockerenv`, escolhendo o endpoint correto.
+
+### ⚡ Problemas Resolvidos na Fase 4
+
+| Problema | Solução |
+|---|---|
+| Java não instalado no container | Dockerfile estende imagem Airflow com OpenJDK |
+| `MINIO_ENDPOINT=http://minio:9000` quebrava em execução local | Detecção automática com fallback para localhost |
+| Buffer dir (`C:/hadoop/temp`) não existia em containers Linux | Script detecta SO e cria `/tmp/spark-s3a-buffer` no Linux |
+| Imports do Kaggle falhavam por falta de variáveis | Load .env ANTES dos imports no download_kaggle.py |
+| Caminho .env diferente entre container e local | Fallback inteligente: `/opt/airflow/.env` → `.env` local |
 
 ---
 
@@ -435,19 +507,27 @@ Dashboards Executivos
 
 ## 🔄 Próximas etapas
 
-### 🔹 Fase 4 — Orquestração com Airflow
+### 🔹 Fase 5 — Modelagem Analítica e BI (Próxima)
 
-* [ ] Criação de DAGs para automatização completa
-* [ ] Agendamento de execuções
-* [ ] Configuração de alertas e monitoramento
-* [ ] Tratamento de falhas e retry policies
-
-### 🔹 Fase 5 — Modelagem Analítica e BI
-
-* [ ] Integração com Power BI
+* [ ] Integração com Power BI / Tableau / Metabase
 * [ ] Construção de dashboards executivos
 * [ ] Definição de KPIs de negócio
 * [ ] Documentação de métricas e dimensões
+* [ ] Criação de relatórios de acompanhamento
+* [ ] Exposição das tabelas Gold via SQL queries
+
+---
+
+## 🏆 Resumo das Fases Completadas
+
+| Fase | Descrição | Status |
+|---|---|---|
+| **Fase 1** | Download Kaggle + Upload MinIO | ✅ CONCLUÍDA |
+| **Fase 2** | Ingestão Bronze (CSV → Parquet) | ✅ CONCLUÍDA |
+| **Fase 3** | Limpeza Silver (8 tabelas, Data Quality) | ✅ CONCLUÍDA |
+| **Fase 4** | Modelo Dimensional Gold (Star Schema) | ✅ CONCLUÍDA |
+| **Fase 5** | Orquestração Airflow (DAG completa) | ✅ CONCLUÍDA |
+| **Fase 6** | Consumo Analítico (Power BI + Dashboards) | ⏳ PRÓXIMA |
 
 ## 📊 Dataset
 

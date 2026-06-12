@@ -8,46 +8,44 @@ from pyspark.sql.types import IntegerType, DoubleType
 # ==============================================================================
 
 def create_spark_session():
-    """Inicializa a sessão do PySpark blindando as propriedades do Hadoop
-
-    e forçando o provedor de credenciais correto da V1 (SimpleAWSCredentialsProvider).
-    """
+    """Inicializa a sessão do PySpark com suporte a S3 (MinIO) detectando o ambiente."""
     print("🚀 Inicializando a sessão do PySpark com suporte a S3 (MinIO)...")
     
-    minio_endpoint = os.getenv("MINIO_ENDPOINT", "http://localhost:9000")
+    # Detecção dinâmica se está rodando dentro do Docker ou local no Windows
+    rodando_em_container = os.path.exists("/.dockerenv")
+    if rodando_em_container:
+        minio_endpoint = os.getenv("MINIO_ENDPOINT", "http://minio:9000")
+    else:
+        minio_endpoint = os.getenv("MINIO_ENDPOINT_LOCAL", "http://localhost:9000")
+
     minio_access_key = os.getenv("MINIO_ACCESS_KEY", "admin")
     minio_secret_key = os.getenv("MINIO_SECRET_KEY", "password")
     
-    hadoop_aws_package = "org.apache.hadoop:hadoop-aws:3.3.4"
-    aws_sdk_package = "com.amazonaws:aws-java-sdk-bundle:1.12.262"
+    # Versão atualizada e estável do pacote Hadoop
+    hadoop_aws_package = "org.apache.hadoop:hadoop-aws:3.4.2"
     
-    spark = SparkSession.builder \
+    # Configuração de diretório de buffer seguro para o Windows vs Linux (Docker)
+    import platform
+    default_buffer_dir = "C:/tmp/spark-s3a-buffer" if platform.system() == "Windows" else "/tmp/spark-s3a-buffer"
+    os.makedirs(default_buffer_dir, exist_ok=True)
+    
+    return SparkSession.builder \
         .appName("Olist_Silver_Processing_MinIO") \
         .master("local[*]") \
-        .config("spark.jars.packages", f"{hadoop_aws_package},{aws_sdk_package}") \
+        .config("spark.jars.packages", hadoop_aws_package) \
         .config("spark.hadoop.fs.s3a.endpoint", minio_endpoint) \
         .config("spark.hadoop.fs.s3a.access.key", minio_access_key) \
         .config("spark.hadoop.fs.s3a.secret.key", minio_secret_key) \
         .config("spark.hadoop.fs.s3a.path.style.access", "true") \
         .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem") \
-        .config("spark.sql.parquet.datetimeRebaseModeInWrite", "CORRECTED") \
+        .config("spark.hadoop.fs.s3a.connection.ssl.enabled", "false") \
+        .config("spark.hadoop.fs.s3a.buffer.dir", default_buffer_dir) \
         .config("spark.hadoop.fs.s3a.aws.credentials.provider", "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider") \
-        .config("spark.hadoop.fs.s3a.buffer.dir", "C:/tmp/hadoop/s3a") \
-        .config("spark.hadoop.fs.s3a.fast.upload.buffer", "disk") \
-        .config("spark.hadoop.fs.s3a.multipart.purge.age", "86400") \
-        .config("spark.hadoop.fs.s3a.multipart.size", "104857600") \
-        .config("spark.hadoop.fs.s3a.multipart.threshold", "209715200") \
-        .config("spark.hadoop.fs.s3a.connection.timeout", "60000") \
-        .config("spark.hadoop.fs.s3a.connection.establish.timeout", "60000") \
-        .config("spark.hadoop.fs.s3a.connection.maximum", "100") \
-        .config("spark.hadoop.fs.s3a.threads.keepalivetime", "60") \
-        .config("spark.hadoop.fs.s3a.paging.maximum", "5000") \
-        .config("spark.hadoop.mapreduce.fileoutputcommitter.algorithm.version", "2") \
         .config("spark.hadoop.mapreduce.fileoutputcommitter.marksuccessfuljobs", "false") \
-        .config("spark.hadoop.mapreduce.fileoutputcommitter.algorithm.version", "2") \
+        .config("spark.hadoop.mapreduce.outputcommitter.factory.scheme.s3a", "org.apache.hadoop.fs.s3a.commit.S3ACommitterFactory") \
+        .config("spark.hadoop.fs.s3a.committer.name", "directory") \
+        .config("spark.hadoop.fs.s3a.committer.staging.conflict-mode", "replace") \
         .getOrCreate()
-        
-    return spark
 
 # ==============================================================================
 # 2. FUNÇÕES ESPECÍFICAS DE TRATAMENTO DE CADA TABELA
