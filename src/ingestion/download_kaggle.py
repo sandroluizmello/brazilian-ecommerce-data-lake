@@ -2,7 +2,6 @@ import os
 import shutil
 from pathlib import Path
 from dotenv import load_dotenv
-from kaggle.api.kaggle_api_extended import KaggleApi
 import boto3
 from botocore.exceptions import ClientError
 
@@ -10,15 +9,29 @@ DATASET = "olistbr/brazilian-ecommerce"
 TMP_DIR = Path("data/tmp_staging")
 BUCKET_NAME = "landing-zone"
 
+# --- 🎯 PASSO 1: CARREGAR AS CONFIGURAÇÕES IMEDIATAMENTE ANTES DE COISAS DO KAGGLE ---
 def carregar_configuracoes():
-    """Carrega as variáveis de ambiente do arquivo .env."""
-    env_path = Path(__file__).resolve().parents[2] / ".env"
+    """Carrega as variáveis de ambiente do arquivo .env mapeando para os caminhos corretos."""
+    env_path = Path("/opt/airflow/.env")
+    if not env_path.exists():
+        # Fallback inteligente se você rodar o script isolado localmente no Windows
+        env_path = Path(__file__).resolve().parents[2] / ".env"
+        
     load_dotenv(dotenv_path=env_path)
     
-    # Injeta token do Kaggle no ambiente
+    # Coleta o token e garante que ele esteja disponível para o SDK do Kaggle
     token = os.getenv('KAGGLE_API_TOKEN')
     if token:
         os.environ['KAGGLE_API_TOKEN'] = token
+        # Garante retrocompatibilidade se o SDK exigir o padrão chave clássico
+        os.environ['KAGGLE_KEY'] = token
+
+# Executa o carregamento das variáveis na raiz do arquivo para preparar o ambiente
+carregar_configuracoes()
+
+# --- 🎯 PASSO 2: SÓ AGORA FAZEMOS O IMPORT DO KAGGLE ---
+# Com as variáveis injetadas acima, o import abaixo lerá os tokens com sucesso!
+from kaggle.api.kaggle_api_extended import KaggleApi
 
 def obter_cliente_minio():
     """Inicializa e retorna o cliente boto3 configurado para o MinIO."""
