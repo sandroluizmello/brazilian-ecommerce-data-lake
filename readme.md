@@ -1,6 +1,32 @@
 # 🚀 Data Engineering Pipeline - Olist
 
+[![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Python 3.13](https://img.shields.io/badge/python-3.13+-blue)](https://www.python.org/downloads/)
+[![PySpark 3.5](https://img.shields.io/badge/PySpark-3.5-orange)](https://spark.apache.org/)
+[![Airflow 3.2.1](https://img.shields.io/badge/Airflow-3.2.1-017cee.svg)](https://airflow.apache.org/)
+[![Docker Ready](https://img.shields.io/badge/Docker-Ready-2496ED.svg)](https://www.docker.com/)
+[![Status](https://img.shields.io/badge/Status-95%25%20Complete-brightgreen)]()
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+
 Projeto de Engenharia de Dados com foco na construção de um pipeline moderno utilizando arquitetura de Data Lake (Bronze, Silver e Gold), simulando um ambiente real de produção.
+
+---
+
+## 📑 Sumário
+
+- [🎯 Objetivo](#-objetivo)
+- [🧱 Arquitetura](#-arquitetura)
+- [🛠️ Tecnologias](#-tecnologias-utilizadas)
+- [⚙️ Ambiente](#-ambiente)
+- [📂 Estrutura](#-estrutura-do-projeto)
+- [🧱 Camadas](#-camadas-do-data-lake)
+- [🔐 Configuração Kaggle](#-configuração-kaggle)
+- [🚀 Como Executar](#-como-executar-o-projeto)
+- [✅ Status](#-status-atual-do-projeto)
+- [🏛️ Arquitetura de Dados](#-arquitetura-de-dados)
+- [⚙️ Orquestração](#-arquitetura-de-orquestração-fase-4---concluída-)
+- [📊 Consumo Analítico](#-consumo-analítico-próxima-fase---post-airflow)
+- [🔄 Próximas Etapas](#-próximas-etapas)
 
 ---
 
@@ -182,6 +208,8 @@ O tratamento de integridade implementado na **camada Bronze** é fundamental par
 **Sem o tratamento preventivo na Bronze**, a camada Silver teria falhado ao tentar aplicar validações de chaves primárias e transformações de tipos.
 
 ---
+
+## 🔐 Configuração Kaggle
 
 Para permitir o download automatizado dos dados, foi realizada a integração com a API do Kaggle utilizando o novo modelo de autenticação via **API Token**.
 
@@ -507,7 +535,7 @@ Dashboards Executivos
 
 ## 🔄 Próximas etapas
 
-### 🔹 Fase 5 — Modelagem Analítica e BI (Próxima)
+### 🔹 Fase 6 — Modelagem Analítica e BI (Próxima)
 
 * [ ] Integração com Power BI / Tableau / Metabase
 * [ ] Construção de dashboards executivos
@@ -528,6 +556,8 @@ Dashboards Executivos
 | **Fase 4** | Modelo Dimensional Gold (Star Schema) | ✅ CONCLUÍDA |
 | **Fase 5** | Orquestração Airflow (DAG completa) | ✅ CONCLUÍDA |
 | **Fase 6** | Consumo Analítico (Power BI + Dashboards) | ⏳ PRÓXIMA |
+
+---
 
 ## 📊 Dataset
 
