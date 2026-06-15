@@ -5,10 +5,10 @@
 [![PySpark 3.5](https://img.shields.io/badge/PySpark-3.5-orange)](https://spark.apache.org/)
 [![Airflow 3.2.1](https://img.shields.io/badge/Airflow-3.2.1-017cee.svg)](https://airflow.apache.org/)
 [![Docker Ready](https://img.shields.io/badge/Docker-Ready-2496ED.svg)](https://www.docker.com/)
-[![Status](https://img.shields.io/badge/Status-95%25%20Complete-brightgreen)]()
+[![Status](https://img.shields.io/badge/Status-100%25%20Complete-brightgreen)]()
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
-Projeto de Engenharia de Dados com foco na construção de um pipeline moderno utilizando arquitetura de Data Lake (Bronze, Silver e Gold), simulando um ambiente real de produção.
+Projeto de **Engenharia de Dados** com foco na construção de um pipeline moderno utilizando arquitetura de Data Lake (Bronze, Silver e Gold), simulando um ambiente real de produção.
 
 ---
 
@@ -24,9 +24,7 @@ Projeto de Engenharia de Dados com foco na construção de um pipeline moderno u
 - [🚀 Como Executar](#-como-executar-o-projeto)
 - [✅ Status](#-status-atual-do-projeto)
 - [🏛️ Arquitetura de Dados](#-arquitetura-de-dados)
-- [⚙️ Orquestração](#-arquitetura-de-orquestração-fase-4---concluída-)
-- [📊 Consumo Analítico](#-consumo-analítico-próxima-fase---post-airflow)
-- [🔄 Próximas Etapas](#-próximas-etapas)
+- [⚙️ Orquestração](#-arquitetura-de-orquestração-fase-5---concluída-)
 
 ---
 
@@ -398,9 +396,9 @@ Camada analítica dimensional destinada à criação de indicadores, métricas d
 
 ## 🔄 Estratégia de Desenvolvimento
 
-A construção do projeto está sendo realizada de forma **incremental**, seguindo boas práticas de Engenharia de Dados.
+A construção do projeto foi realizada de forma **incremental**, seguindo boas práticas de Engenharia de Dados.
 
-Antes da implementação da orquestração, cada camada é validada individualmente para garantir:
+Cada camada foi validada individualmente para garantir:
 
 * ✅ Confiabilidade das extrações
 * ✅ Integridade dos dados
@@ -408,11 +406,9 @@ Antes da implementação da orquestração, cada camada é validada individualme
 * ✅ Facilidade de troubleshooting
 * ✅ Reprodutibilidade dos processos
 
-**Somente após a validação completa das camadas Bronze, Silver e Gold** será realizada a automatização do fluxo utilizando Apache Airflow.
-
 ---
 
-## ⚙️ Arquitetura de Orquestração (Fase 4 - CONCLUÍDA) ✅
+## ⚙️ Arquitetura de Orquestração (Fase 5 - CONCLUÍDA) ✅
 
 O pipeline foi completamente automatizado utilizando **Apache Airflow**:
 
@@ -497,7 +493,7 @@ MINIO_SECRET_KEY=password
 
 **Nota**: Os scripts detectam automaticamente se estão rodando em container ou localmente via verificação de `/.dockerenv`, escolhendo o endpoint correto.
 
-### ⚡ Problemas Resolvidos na Fase 4
+### ⚡ Problemas Resolvidos na Fase 5
 
 | Problema | Solução |
 |---|---|
@@ -506,43 +502,6 @@ MINIO_SECRET_KEY=password
 | Buffer dir (`C:/hadoop/temp`) não existia em containers Linux | Script detecta SO e cria `/tmp/spark-s3a-buffer` no Linux |
 | Imports do Kaggle falhavam por falta de variáveis | Load .env ANTES dos imports no download_kaggle.py |
 | Caminho .env diferente entre container e local | Fallback inteligente: `/opt/airflow/.env` → `.env` local |
-
----
-
-## 📊 Consumo Analítico (Próxima Fase - Post Airflow)
-
-Os dados da camada Gold serão disponibilizados para consumo analítico através de **Power BI** e relatórios executivos:
-
-```
-Gold (MinIO/Parquet)
-   ↓
-Power BI / Ferramentas de BI
-   ↓
-Dashboards Executivos
-```
-
-### Primeiros Indicadores Previstos
-
-* 💰 **Faturamento por Estado**: Análise geográfica de receita
-* 📈 **Evolução Mensal de Vendas**: Série temporal de volume
-* 🎯 **Ticket Médio**: Valor médio de transação
-* 🛍️ **Categorias Mais Vendidas**: Top products/categories
-* ⏱️ **Tempo Médio de Entrega**: KPI logístico
-* ⭐ **Performance de Vendedores**: Ranking e análise de sellers
-* 👤 **Segmentação de Clientes**: Clusters e comportamentos
-
----
-
-## 🔄 Próximas etapas
-
-### 🔹 Fase 6 — Modelagem Analítica e BI (Próxima)
-
-* [ ] Integração com Power BI / Tableau / Metabase
-* [ ] Construção de dashboards executivos
-* [ ] Definição de KPIs de negócio
-* [ ] Documentação de métricas e dimensões
-* [ ] Criação de relatórios de acompanhamento
-* [ ] Exposição das tabelas Gold via SQL queries
 
 ---
 
@@ -555,7 +514,23 @@ Dashboards Executivos
 | **Fase 3** | Limpeza Silver (8 tabelas, Data Quality) | ✅ CONCLUÍDA |
 | **Fase 4** | Modelo Dimensional Gold (Star Schema) | ✅ CONCLUÍDA |
 | **Fase 5** | Orquestração Airflow (DAG completa) | ✅ CONCLUÍDA |
-| **Fase 6** | Consumo Analítico (Power BI + Dashboards) | ⏳ PRÓXIMA |
+
+**Progresso Total**: 100% (5/5 fases) ✅ **PROJETO FINALIZADO**
+
+---
+
+## 📌 Escopo do Projeto
+
+Este é um projeto de **Engenharia de Dados** que cobre:
+
+✅ Ingestão de dados  
+✅ Processamento distribuído  
+✅ Validação e qualidade  
+✅ Modelagem dimensional  
+✅ Orquestração automática  
+✅ Infraestrutura reproduzível  
+
+**Nota**: Consumo analítico (Power BI, dashboards) é escopo de **Ciência de Dados/BI**, portanto fora do escopo deste projeto.
 
 ---
 
@@ -570,6 +545,8 @@ Dataset público utilizado:
 ## 👤 Autor
 
 **Sandro Luiz**
+
+Pós-Graduando em Engenharia de Dados - PUC Minas
 
 ---
 
